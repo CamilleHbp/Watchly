@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- CrossWatch as a watch history source, for self-hosted instances. Set `CROSSWATCH_URL` to your CrossWatch; users connect on the Accounts step with a read-only CrossWatch API token and pick which synced account's history to read. Watchly reads history and ratings from CrossWatch's `/api/export/items` endpoint, which needs a CrossWatch build that includes it. Episodes count toward their series.
+
 ## 1.17.2 - 2026-10-22
 
 ### Fixed

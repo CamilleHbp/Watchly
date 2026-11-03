@@ -1,3 +1,4 @@
+import hashlib
 import time
 from datetime import datetime, timezone
 from typing import TypeVar
@@ -15,7 +16,7 @@ from app.core.settings import (
     get_default_settings,
     settings_from_credentials,
 )
-from app.services.crosswatch import crosswatch_identity, crosswatch_service
+from app.services.crosswatch import crosswatch_service
 from app.services.mdblist import mdblist_service
 from app.services.nuvio import nuvio_service
 from app.services.simkl import simkl_service
@@ -162,10 +163,10 @@ class AuthService:
                 identities["mdblist"] = user_id
 
         if payload.crosswatch_api_token and payload.crosswatch_api_token != STORED_SECRET_SENTINEL:
-            if await self._verify_crosswatch_token(payload.crosswatch_api_token, payload.crosswatch_provider):
-                identities["crosswatch"] = crosswatch_identity(
-                    payload.crosswatch_api_token, payload.crosswatch_provider
-                )
+            if identity := await self._verify_crosswatch_identity(
+                payload.crosswatch_api_token, payload.crosswatch_provider
+            ):
+                identities["crosswatch"] = identity
 
         if payload.nuvio_access_token and payload.nuvio_access_token != STORED_SECRET_SENTINEL:
             # The profile is part of the identity: each Nuvio profile has its own
@@ -263,16 +264,19 @@ class AuthService:
         user_id = info.get("user_id")
         return str(user_id) if user_id else None
 
-    async def _verify_crosswatch_token(self, api_token: str, provider: str) -> bool:
-        """Whether this server's CrossWatch accepts the token for reading exports."""
+    async def _verify_crosswatch_identity(self, api_token: str, provider: str) -> str | None:
+        """Identity for the token and provider, or None if this server's CrossWatch won't accept it."""
         if not crosswatch_service.enabled():
-            return False
+            return None
         try:
             await crosswatch_service.count_items(api_token, provider)
         except Exception as e:
-            logger.info(f"CrossWatch token check failed: {type(e).__name__}")
-            return False
-        return True
+            logger.info(f"CrossWatch identity lookup failed: {type(e).__name__}")
+            return None
+        # Read-only CrossWatch tokens can't ask who they belong to, so the token is
+        # the identity, hashed so the identity index never holds it. The provider is
+        # part of it: each synced account has its own history, as Nuvio profiles do.
+        return f"{hashlib.sha256(api_token.encode()).hexdigest()[:16]}:{provider}"
 
     async def _find_account_token(self, provider: str, provider_user_id: str) -> str | None:
         """Locate the account token for a verified provider identity."""

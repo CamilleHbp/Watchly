@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 from datetime import datetime
 from typing import Any
 
@@ -13,16 +12,6 @@ from app.models.history import WatchHistory, WatchHistoryItem
 EXPORT_PAGE_LIMIT = 1000
 # Backstop against a pagination contract change turning the loop endless.
 MAX_EXPORT_PAGES = 100
-
-
-def crosswatch_identity(api_token: str, provider: str) -> str:
-    """Stable account identity for a token and the provider it reads from.
-
-    CrossWatch has no "who am I" endpoint open to read-only tokens, so the token
-    itself is the identity; it is hashed so the identity index never holds it.
-    """
-    digest = hashlib.sha256(api_token.encode()).hexdigest()[:16]
-    return f"{digest}:{provider}"
 
 
 class CrossWatchService:

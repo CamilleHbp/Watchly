@@ -120,6 +120,43 @@ def test_mdblist_only_account_minted_and_key_stored(monkeypatch):
     assert exc.value.status_code == 400
 
 
+CROSSWATCH_TOKEN = "cwt_0123456789abcdef.secret-secret-secret-secret-secret"
+
+
+def test_crosswatch_only_account_minted_per_provider_without_storing_the_token_as_identity(monkeypatch):
+    fake = setup_fakes(monkeypatch)
+    monkeypatch.setattr("app.services.crosswatch.settings.CROSSWATCH_URL", "http://crosswatch:8787")
+
+    async def fake_count(api_token, provider):
+        if api_token != CROSSWATCH_TOKEN:
+            request = httpx.Request("GET", "http://crosswatch:8787/api/export/items")
+            raise httpx.HTTPStatusError("rejected", request=request, response=httpx.Response(401, request=request))
+        return 2
+
+    monkeypatch.setattr("app.services.auth.crosswatch_service.count_items", fake_count)
+    service = AuthService()
+
+    def payload(provider: str, api_token: str = CROSSWATCH_TOKEN):
+        return TokenRequest(
+            crosswatch_api_token=api_token, crosswatch_provider=provider, watch_history_source="crosswatch"
+        )
+
+    trakt, _, user_settings = asyncio.run(service.create_user_token(payload("TRAKT")))
+    plex, _, _ = asyncio.run(service.create_user_token(payload("PLEX")))
+
+    assert trakt.token != plex.token
+    assert user_settings.crosswatch_api_token == CROSSWATCH_TOKEN
+    assert user_settings.crosswatch_provider == "TRAKT"
+    identity_keys = [key for key in fake.data if key.startswith("watchly:identity:crosswatch:")]
+    assert len(identity_keys) == 2
+    assert all("secret" not in key for key in identity_keys)
+
+    # A token CrossWatch rejects can't open or create an account.
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(service.create_user_token(payload("TRAKT", "cwt_wrong")))
+    assert exc.value.status_code == 400
+
+
 def test_each_nuvio_profile_is_its_own_account(monkeypatch):
     fake = setup_fakes(monkeypatch)
     service = AuthService()

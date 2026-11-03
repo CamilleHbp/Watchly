@@ -2,11 +2,8 @@ import asyncio
 
 import httpx
 import pytest
-from fastapi import HTTPException
 
-from app.api.models.tokens import TokenRequest
-from app.services.auth import AuthService
-from app.services.crosswatch import CrossWatchService, crosswatch_identity
+from app.services.crosswatch import CrossWatchService
 
 GOOD_TOKEN = "cwt_0123456789abcdef.secret-secret-secret-secret-secret"
 
@@ -131,13 +128,6 @@ def test_an_outage_raises_instead_of_an_empty_history():
     assert exc.value.response.status_code == 503
 
 
-def test_identity_hides_the_token_and_separates_providers():
-    identity = crosswatch_identity(GOOD_TOKEN, "TRAKT")
-    assert GOOD_TOKEN not in identity and "secret" not in identity
-    assert identity == crosswatch_identity(GOOD_TOKEN, "TRAKT")
-    assert identity != crosswatch_identity(GOOD_TOKEN, "PLEX")
-
-
 def settings_with_crosswatch_token(api_token: str):
     from app.core.settings import get_default_settings
 
@@ -189,35 +179,3 @@ def test_an_unconfigured_server_treats_the_token_as_missing(monkeypatch):
         )
     )
     assert history is None and missing and not revoked
-
-
-def test_crosswatch_only_account_minted_and_token_stored(monkeypatch):
-    from tests.test_account_identity import setup_fakes
-
-    fake = setup_fakes(monkeypatch)
-    monkeypatch.setattr("app.services.crosswatch.settings.CROSSWATCH_URL", "http://crosswatch:8787")
-
-    async def fake_count(api_token, provider):
-        if api_token != GOOD_TOKEN:
-            FakeClient._raise("/api/export/items", 401)
-        return 2
-
-    monkeypatch.setattr("app.services.auth.crosswatch_service.count_items", fake_count)
-    service = AuthService()
-    payload = TokenRequest(
-        crosswatch_api_token=GOOD_TOKEN, crosswatch_provider="TRAKT", watch_history_source="crosswatch"
-    )
-
-    response, auth_key, user_settings = asyncio.run(service.create_user_token(payload))
-
-    assert auth_key is None
-    assert fake.data[f"watchly:identity:crosswatch:{crosswatch_identity(GOOD_TOKEN, 'TRAKT')}"] == response.token
-    assert user_settings.crosswatch_api_token == GOOD_TOKEN
-    assert user_settings.crosswatch_provider == "TRAKT"
-
-    # A token CrossWatch rejects can't open or create an account.
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(
-            service.create_user_token(TokenRequest(crosswatch_api_token="cwt_wrong", watch_history_source="crosswatch"))
-        )
-    assert exc.value.status_code == 400
