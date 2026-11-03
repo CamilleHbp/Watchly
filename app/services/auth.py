@@ -15,6 +15,7 @@ from app.core.settings import (
     get_default_settings,
     settings_from_credentials,
 )
+from app.services.crosswatch import crosswatch_identity, crosswatch_service
 from app.services.mdblist import mdblist_service
 from app.services.nuvio import nuvio_service
 from app.services.simkl import simkl_service
@@ -160,6 +161,12 @@ class AuthService:
             if user_id := await self._verify_mdblist_identity(payload.mdblist_api_key):
                 identities["mdblist"] = user_id
 
+        if payload.crosswatch_api_token and payload.crosswatch_api_token != STORED_SECRET_SENTINEL:
+            if await self._verify_crosswatch_token(payload.crosswatch_api_token, payload.crosswatch_provider):
+                identities["crosswatch"] = crosswatch_identity(
+                    payload.crosswatch_api_token, payload.crosswatch_provider
+                )
+
         if payload.nuvio_access_token and payload.nuvio_access_token != STORED_SECRET_SENTINEL:
             # The profile is part of the identity: each Nuvio profile has its own
             # history, so each gets its own Watchly account, as Stremio profiles do.
@@ -172,7 +179,7 @@ class AuthService:
                 status_code=400,
                 detail=(
                     "Could not verify any connected account. "
-                    "Reconnect Stremio, Trakt, Simkl, MDBList or Nuvio and try again."
+                    "Reconnect Stremio, Trakt, Simkl, MDBList, Nuvio or CrossWatch and try again."
                 ),
             )
 
@@ -255,6 +262,17 @@ class AuthService:
 
         user_id = info.get("user_id")
         return str(user_id) if user_id else None
+
+    async def _verify_crosswatch_token(self, api_token: str, provider: str) -> bool:
+        """Whether this server's CrossWatch accepts the token for reading exports."""
+        if not crosswatch_service.enabled():
+            return False
+        try:
+            await crosswatch_service.count_items(api_token, provider)
+        except Exception as e:
+            logger.info(f"CrossWatch token check failed: {type(e).__name__}")
+            return False
+        return True
 
     async def _find_account_token(self, provider: str, provider_user_id: str) -> str | None:
         """Locate the account token for a verified provider identity."""
@@ -440,6 +458,8 @@ class AuthService:
             trakt_token_expires_at=payload.trakt_token_expires_at,
             simkl_access_token=unmasked("simkl_access_token", payload.simkl_access_token),
             mdblist_api_key=unmasked("mdblist_api_key", payload.mdblist_api_key),
+            crosswatch_api_token=unmasked("crosswatch_api_token", payload.crosswatch_api_token),
+            crosswatch_provider=payload.crosswatch_provider,
             nuvio_access_token=unmasked("nuvio_access_token", payload.nuvio_access_token),
             nuvio_refresh_token=unmasked("nuvio_refresh_token", payload.nuvio_refresh_token),
             nuvio_expires_at=payload.nuvio_expires_at,

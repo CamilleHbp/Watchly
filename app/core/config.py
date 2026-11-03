@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     TRAKT_CLIENT_SECRET: str | None = None
     SIMKL_CLIENT_ID: str | None = None
     SIMKL_CLIENT_SECRET: str | None = None
+    # Base URL of a self-hosted CrossWatch; enables it as a history source.
+    CROSSWATCH_URL: str | None = None
 
 
 settings = Settings()

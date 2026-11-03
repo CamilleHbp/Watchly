@@ -20,7 +20,7 @@ const hide = (el) => el && el.classList.add('hidden');
 
 const POPULARITY_LABELS = { mainstream: 'Mainstream', balanced: 'Balanced', gems: 'Hidden Gems', all: 'All' };
 const SORTING_LABELS = { default: 'Default', movies_first: 'Movies first', series_first: 'Series first' };
-const SOURCE_LABELS = { stremio: 'Stremio', trakt: 'Trakt', simkl: 'Simkl', mdblist: 'MDBList', nuvio: 'Nuvio' };
+const SOURCE_LABELS = { stremio: 'Stremio', trakt: 'Trakt', simkl: 'Simkl', mdblist: 'MDBList', nuvio: 'Nuvio', crosswatch: 'CrossWatch' };
 const WARMING_LABELS = {
     pending: 'Saving your configuration',
     building_profile: 'Reading your watch history',
@@ -235,6 +235,8 @@ function renderSources(sources) {
         { label: sources.simkl ? 'Simkl connected' : 'Simkl not connected', tone: sources.simkl ? BADGE_OK : BADGE_MUTED },
         { label: sources.mdblist ? 'MDBList connected' : 'MDBList not connected', tone: sources.mdblist ? BADGE_OK : BADGE_MUTED },
         { label: sources.nuvio ? 'Nuvio connected' : 'Nuvio not connected', tone: sources.nuvio ? BADGE_OK : BADGE_MUTED },
+        // Only self-hosted servers offer CrossWatch, so it gets a badge only once connected.
+        ...(sources.crosswatch ? [{ label: 'CrossWatch connected', tone: BADGE_OK }] : []),
     ];
     items.forEach(({ label, tone }) => {
         const span = document.createElement('span');

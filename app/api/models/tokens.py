@@ -40,7 +40,9 @@ class TokenRequest(BaseModel):
     nuvio_expires_at: int | None = Field(default=None, description="Epoch seconds when the Nuvio access token expires")
     nuvio_profile_id: int | None = Field(default=None, ge=1, le=6, description="Nuvio profile index")
     nuvio_profile_name: str | None = Field(default=None, description="Nuvio profile name")
-    watch_history_source: Literal["stremio", "trakt", "simkl", "mdblist", "nuvio"] = Field(
+    crosswatch_api_token: str | None = Field(default=None, description="CrossWatch read-only API token")
+    crosswatch_provider: str = Field(default="CROSSWATCH", pattern=r"^[A-Z]+$", description="CrossWatch provider")
+    watch_history_source: Literal["stremio", "trakt", "simkl", "mdblist", "nuvio", "crosswatch"] = Field(
         default="stremio", description="Source for watch history"
     )
 

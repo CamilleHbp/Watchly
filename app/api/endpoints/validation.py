@@ -13,6 +13,7 @@ from app.api.models.validation import (
 )
 from app.core.security import STORED_SECRET_SENTINEL
 from app.core.settings import LLMConfig, PosterRatingConfig
+from app.services.crosswatch import crosswatch_service
 from app.services.llm import llm_service
 from app.services.mdblist import mdblist_service
 from app.services.poster_ratings.factory import PosterProvider, poster_ratings_factory
@@ -150,6 +151,23 @@ async def validate_mdblist_api_key(data: BaseValidationInput) -> BaseValidationR
         logger.info(f"MDBList key validation failed: {type(e).__name__}")
         return BaseValidationResponse(valid=False, message="Invalid MDBList API key")
     return BaseValidationResponse(valid=True, message=f"Connected as {user.get('username') or user.get('user_id')}")
+
+
+class CrossWatchValidationInput(BaseModel):
+    api_token: str = Field(description="CrossWatch read-only API token")
+    provider: str = Field(default="CROSSWATCH", pattern=r"^[A-Z]+$", description="CrossWatch provider to read")
+
+
+@router.post("/crosswatch/validation")
+async def validate_crosswatch_token(data: CrossWatchValidationInput) -> BaseValidationResponse:
+    if not crosswatch_service.enabled():
+        return BaseValidationResponse(valid=False, message="CrossWatch is not configured on this server")
+    try:
+        total = await crosswatch_service.count_items(data.api_token, data.provider)
+    except Exception as e:
+        logger.info(f"CrossWatch token validation failed: {type(e).__name__}")
+        return BaseValidationResponse(valid=False, message="CrossWatch rejected the token")
+    return BaseValidationResponse(valid=True, message=f"Connected: {total} watched items")
 
 
 class OAuthTokenValidationInput(BaseModel):

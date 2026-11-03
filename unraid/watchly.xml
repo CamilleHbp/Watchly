@@ -33,4 +33,5 @@
   <Config Name="Trakt Client Secret" Target="TRAKT_CLIENT_SECRET" Default="" Description="Optional. Trakt API app client secret." Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="Simkl Client ID" Target="SIMKL_CLIENT_ID" Default="" Description="Optional. Simkl API app client id, to let users connect Simkl accounts." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Simkl Client Secret" Target="SIMKL_CLIENT_SECRET" Default="" Description="Optional. Simkl API app client secret." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="CrossWatch URL" Target="CROSSWATCH_URL" Default="" Description="Optional. Base URL of a self-hosted CrossWatch, to let users read history from it." Type="Variable" Display="advanced" Required="false" Mask="false"/>
 </Container>

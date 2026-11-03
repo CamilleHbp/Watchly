@@ -462,6 +462,7 @@ export async function recallProviderAccount(provider, tokens) {
         simkl: { simkl_access_token: tokens.access_token },
         mdblist: { mdblist_api_key: tokens.api_key },
         nuvio: { nuvio_access_token: tokens.access_token, nuvio_profile_id: tokens.profile_id },
+        crosswatch: { crosswatch_api_token: tokens.api_token, crosswatch_provider: tokens.provider },
     }[provider];
     try {
         await fetchIdentity(payload);
@@ -822,6 +823,17 @@ function restoreWatchHistoryState(settings) {
         const mdblistStatus = document.getElementById('mdblistStatus');
         if (mdblistStatus) mdblistStatus.textContent = 'Connected';
         setProviderConnected('mdblist', true);
+    }
+
+    const crosswatchTokenInput = document.getElementById('crosswatchApiToken');
+    if (settings.crosswatch_api_token && crosswatchTokenInput && !crosswatchTokenInput.value) {
+        // Masked like the MDBList key: the marker round-trips so the save keeps the stored token.
+        crosswatchTokenInput.value = settings.crosswatch_api_token;
+        const crosswatchProvider = document.getElementById('crosswatchProvider');
+        if (crosswatchProvider && settings.crosswatch_provider) crosswatchProvider.value = settings.crosswatch_provider;
+        const crosswatchStatus = document.getElementById('crosswatchStatus');
+        if (crosswatchStatus) crosswatchStatus.textContent = 'Connected';
+        setProviderConnected('crosswatch', true);
     }
 
     if (settings.nuvio_access_token && !hasLiveToken('nuvio')) {

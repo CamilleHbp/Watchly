@@ -146,6 +146,7 @@ Docker is the recommended way to self-host. Watchly requires a **Redis** instanc
    # TRAKT_CLIENT_SECRET=   # only for legacy (non-PKCE) Trakt apps
    # SIMKL_CLIENT_ID=
    # SIMKL_CLIENT_SECRET=
+   # CROSSWATCH_URL=http://crosswatch:8787
    ```
 
    `HOST_NAME` must be the public URL where the addon is reachable. It is used to build OAuth callback URLs and the manifest URL, so it has to match what Stremio (and Trakt/Simkl) will see.
@@ -257,6 +258,7 @@ All settings are environment variables. Only `TOKEN_SALT` and `HOST_NAME` are st
 | --- | --- | --- |
 | `TRAKT_CLIENT_ID` / `TRAKT_CLIENT_SECRET` | — | Trakt OAuth app credentials; enable Trakt as a history source. The secret is only needed for legacy apps — PKCE apps (the Trakt default now) have none. |
 | `SIMKL_CLIENT_ID` / `SIMKL_CLIENT_SECRET` | — | Simkl OAuth app credentials; enable Simkl as a history source. |
+| `CROSSWATCH_URL` | — | Base URL of a self-hosted CrossWatch; enables CrossWatch as a history source. |
 
 ### Tuning & behavior
 
@@ -282,6 +284,7 @@ These are only needed if you want the corresponding feature; Watchly runs fine w
 
 - **Trakt** — create an API app at [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications). Set the redirect URI to `HOST_NAME/auth/trakt/callback` and put the client ID in `TRAKT_CLIENT_ID`. New Trakt apps use PKCE and are not issued a secret; set `TRAKT_CLIENT_SECRET` only if your app has one.
 - **Simkl** — create an app at [simkl.com/settings/developer](https://simkl.com/settings/developer). Set the redirect URI to `HOST_NAME/auth/simkl/callback` and put the credentials in `SIMKL_CLIENT_ID` / `SIMKL_CLIENT_SECRET`.
+- **CrossWatch** — set `CROSSWATCH_URL` to your [CrossWatch](https://github.com/cenodude/CrossWatch) instance, reachable from the Watchly container. Watchly reads its `/api/export/items` endpoint, which needs a CrossWatch build that includes it. Users connect with a CrossWatch monitor (read-only) API token and pick which synced account's history to read.
 - **AI-named rows** — users configure an LLM provider (Gemini, OpenAI, Anthropic, or OpenRouter) with their own API key on the configure page; no server config required. Without one, rows fall back to deterministic names.
 - **Poster ratings (RPDB)** — users enter their own [RatingPosterDB](https://ratingposterdb.com/) key on the configure page; no server config required.
 

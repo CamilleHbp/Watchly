@@ -96,6 +96,8 @@ function getRequestPayload() {
         tmdb_api_key: document.getElementById('tmdbApiKey')?.value.trim() || '',
         simkl_api_key: document.getElementById('simklApiKey')?.value.trim() || '',
         mdblist_api_key: document.getElementById('mdblistApiKey')?.value.trim() || '',
+        crosswatch_api_token: document.getElementById('crosswatchApiToken')?.value.trim() || '',
+        crosswatch_provider: document.getElementById('crosswatchProvider')?.value || 'CROSSWATCH',
         llm_provider: document.getElementById('llmProvider')?.value || '',
         llm_api_key: document.getElementById('llmApiKey')?.value.trim() || '',
         llm_model: document.getElementById('llmModel')?.value.trim() || '',
@@ -154,6 +156,8 @@ function buildTokenPayload(formData) {
         trakt_token_expires_at: window._watchlyOAuth?.trakt?.expires_at || undefined,
         simkl_access_token: window._watchlyOAuth?.simkl?.access_token || undefined,
         mdblist_api_key: formData.mdblist_api_key || undefined,
+        crosswatch_api_token: formData.crosswatch_api_token || undefined,
+        crosswatch_provider: formData.crosswatch_provider,
         nuvio_access_token: window._watchlyOAuth?.nuvio?.access_token || undefined,
         nuvio_refresh_token: window._watchlyOAuth?.nuvio?.refresh_token || undefined,
         nuvio_expires_at: window._watchlyOAuth?.nuvio?.expires_at || undefined,
@@ -166,15 +170,16 @@ function validateFormData(formData) {
     const hasSimkl = !!window._watchlyOAuth?.simkl?.access_token;
     const hasMdblist = !!formData.mdblist_api_key;
     const hasNuvio = !!window._watchlyOAuth?.nuvio?.access_token;
+    const hasCrosswatch = !!formData.crosswatch_api_token;
 
-    if (!hasStremio && !hasTrakt && !hasSimkl && !hasMdblist && !hasNuvio) {
-        showError('generalError', 'Connect at least one account: Stremio, Trakt, Simkl, MDBList or Nuvio.');
+    if (!hasStremio && !hasTrakt && !hasSimkl && !hasMdblist && !hasNuvio && !hasCrosswatch) {
+        showError('generalError', 'Connect at least one account: Stremio, Trakt, Simkl, MDBList, Nuvio or CrossWatch.');
         switchSection('login');
         return false;
     }
 
     if (formData.watch_history_source === 'stremio' && !hasStremio) {
-        showError('generalError', 'Login with Stremio, or pick Trakt, Simkl, MDBList or Nuvio as your watch history source.');
+        showError('generalError', 'Login with Stremio, or pick Trakt, Simkl, MDBList, Nuvio or CrossWatch as your watch history source.');
         switchSection('login');
         return false;
     }
@@ -249,6 +254,7 @@ function initializeFormSubmission() {
                     profilePayload.trakt_token_expires_at = undefined;
                     profilePayload.simkl_access_token = undefined;
                     profilePayload.mdblist_api_key = undefined;
+                    profilePayload.crosswatch_api_token = undefined;
                     if (batchProvider === 'nuvio') {
                         profilePayload.authKey = undefined;
                         profilePayload.email = undefined;
@@ -916,6 +922,50 @@ function initializeWatchHistorySource() {
             if (mdblistKeyInput) mdblistKeyInput.value = '';
             if (mdblistStatus) mdblistStatus.textContent = 'MDBList';
             setProviderConnected('mdblist', false);
+        });
+    }
+
+    const crosswatchTokenInput = document.getElementById('crosswatchApiToken');
+    const crosswatchProviderSelect = document.getElementById('crosswatchProvider');
+    const crosswatchConnectBtn = document.getElementById('crosswatchConnectBtn');
+    const crosswatchStatusMessage = document.getElementById('crosswatchStatusMessage');
+    const crosswatchStatus = document.getElementById('crosswatchStatus');
+    const crosswatchLogoutBtn = document.getElementById('crosswatchLogoutBtn');
+
+    if (crosswatchConnectBtn) {
+        crosswatchConnectBtn.addEventListener('click', async () => {
+            const apiToken = crosswatchTokenInput?.value.trim();
+            const provider = crosswatchProviderSelect?.value || 'CROSSWATCH';
+            if (!apiToken) {
+                setValidationMessage(crosswatchStatusMessage, 'Paste your CrossWatch API token first', 'error');
+                return;
+            }
+            crosswatchConnectBtn.disabled = true;
+            try {
+                const data = await postJson('/crosswatch/validation', { api_token: apiToken, provider });
+                if (!data.valid) {
+                    setValidationMessage(crosswatchStatusMessage, data.message || 'CrossWatch rejected the token', 'error');
+                    return;
+                }
+                clearValidationMessage(crosswatchStatusMessage);
+                if (crosswatchStatus) crosswatchStatus.textContent = data.message;
+                setProviderConnected('crosswatch', true);
+                if (!appState?.auth?.loggedIn) {
+                    recallProviderAccount('crosswatch', { api_token: apiToken, provider });
+                }
+            } catch (e) {
+                setValidationMessage(crosswatchStatusMessage, 'Could not reach the server. Try again.', 'error');
+            } finally {
+                crosswatchConnectBtn.disabled = false;
+            }
+        });
+    }
+
+    if (crosswatchLogoutBtn) {
+        crosswatchLogoutBtn.addEventListener('click', () => {
+            if (crosswatchTokenInput) crosswatchTokenInput.value = '';
+            if (crosswatchStatus) crosswatchStatus.textContent = 'CrossWatch';
+            setProviderConnected('crosswatch', false);
         });
     }
 

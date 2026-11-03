@@ -12,6 +12,7 @@ from app.core.settings import UserSettings, resolve_tmdb_api_key
 from app.models.history import WatchHistory
 from app.models.library import LibraryCollection
 from app.models.profile import TasteProfile
+from app.services.crosswatch import crosswatch_service
 from app.services.mdblist import mdblist_service
 from app.services.nuvio import nuvio_service
 from app.services.profile.builder import ProfileBuilder
@@ -236,7 +237,7 @@ class ProfileService:
             await user_cache.invalidate_profile(token, content_type)
             await user_cache.invalidate_watched_sets(token, content_type)
 
-        if source in ("trakt", "simkl", "mdblist", "nuvio"):
+        if source in ("trakt", "simkl", "mdblist", "nuvio", "crosswatch"):
             profile, watched_tmdb, watched_imdb = await self._build_from_external_source(
                 source, user_settings, content_type, library_items, token=token
             )
@@ -375,6 +376,30 @@ class ProfileService:
                         )
                 except Exception as e:
                     logger.error(f"MDBList history fetch failed ({type(e).__name__}). Falling back to Stremio library.")
+            else:
+                token_missing = True
+        elif source == "crosswatch":
+            if user_settings and user_settings.crosswatch_api_token and crosswatch_service.enabled():
+                try:
+                    watch_history = await crosswatch_service.get_history(
+                        user_settings.crosswatch_api_token, user_settings.crosswatch_provider
+                    )
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code in (401, 403):
+                        token_revoked = True
+                        logger.error(
+                            f"CrossWatch token rejected (HTTP {e.response.status_code}). "
+                            "Clearing stored token; user must reconnect CrossWatch."
+                        )
+                    else:
+                        logger.error(
+                            f"CrossWatch history fetch failed (HTTP {e.response.status_code}). "
+                            "Falling back to Stremio library."
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"CrossWatch history fetch failed ({type(e).__name__}). Falling back to Stremio library."
+                    )
             else:
                 token_missing = True
         elif source == "nuvio":
@@ -665,6 +690,10 @@ class ProfileService:
             elif source == "mdblist":
                 if settings_dict.get("mdblist_api_key"):
                     settings_dict["mdblist_api_key"] = None
+                    mutated = True
+            elif source == "crosswatch":
+                if settings_dict.get("crosswatch_api_token"):
+                    settings_dict["crosswatch_api_token"] = None
                     mutated = True
             elif source == "nuvio":
                 for field in ("nuvio_access_token", "nuvio_refresh_token", "nuvio_expires_at"):
